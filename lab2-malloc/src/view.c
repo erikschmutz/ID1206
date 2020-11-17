@@ -12,6 +12,7 @@
 int main(int argc, char *argv[])
 {
     init();
+    // print_state();
     print_state();
 
     void *test = dalloc(16);
@@ -19,6 +20,7 @@ int main(int argc, char *argv[])
 
     dfree(test);
     dfree(test2);
-
     print_state();
+
+    // print_state();
 }

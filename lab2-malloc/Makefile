@@ -4,13 +4,13 @@ make_folder:
 
 compile: make_folder
 	@gcc src/bench.c src/dalloc.c -o bin/bench.o
-	@gcc src/view.c src/dalloc.c -o bin/view.o
+	@gcc src/view.c src/dalloc.c -o bin/view.o 
 
 start: compile
 	@./bin/dalloc.o
 
 view: compile
-	@./bin/view.o
+	@./bin/view.o 
 
 bench: compile
 	

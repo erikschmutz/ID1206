@@ -2,5 +2,5 @@
 
 void dfree(void *memory);
 void *dalloc(size_t request);
-void printState();
+void print_state();
 void init();

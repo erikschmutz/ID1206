@@ -69,7 +69,12 @@ struct head *after(struct head *block)
     return (struct head *)((long)block + (block->size + HEAD));
 }
 
-void printState()
+void view_head(struct head *current)
+{
+    printf("%i, size %i, free: %i, bfree: %i, bsize: %i, pos: %p\n", current->id, current->size, current->free, current->bfree, current->bsize, current);
+}
+
+void print_state()
 {
 
     printf("------\n");
@@ -77,7 +82,8 @@ void printState()
 
     while (current != NULL)
     {
-        printf("Free list: %i, size %i, free: %i\n", current->id, current->size, current->free);
+        printf("List ");
+        view_head(current);
         current = current->next;
     };
 
@@ -88,7 +94,8 @@ void printState()
     while (((long)current) < ((long)arena + ARENA))
     {
 
-        printf("Arena id: %i, size: %i, free: %i, position: %p\n", current->id, current->size, current->free, current);
+        printf("Block ");
+        view_head(current);
         current = after(current);
     }
 
@@ -97,7 +104,7 @@ void printState()
 
 struct head *before(struct head *block)
 {
-    return (struct head *)(block - (HEAD + block->size));
+    return (struct head *)((long)block - (HEAD + block->bsize));
 }
 
 struct head *split(struct head *block, int size)
@@ -145,6 +152,7 @@ struct head *new ()
     new->bsize = 0;
     new->free = TRUE;
     new->size = size;
+    new->id = 20;
 
     struct head *sentinel = after(new);
 
@@ -209,12 +217,18 @@ void *dalloc(size_t request)
 
             // Here we split the block
             struct head *r_block = after(taken);
+
             r_block->size = r;
             r_block->free = TRUE;
+
             r_block->bfree = FALSE;
+            r_block->bsize = size;
 
             insert(r_block);
         }
+
+        taken->bsize = before(taken)->size;
+        taken->bfree = FALSE;
 
         taken->free = FALSE;
         taken->id = ++block_id;
@@ -226,19 +240,41 @@ void *dalloc(size_t request)
     //
 }
 
+struct head *merge(struct head *block)
+{
+    struct head *aft = after(block);
+
+    if (block->bfree)
+    {
+        printf("Block with id %i has before which is free\n", block->id);
+        struct head *b = before(block);
+        printf("Free block before  %p\n", b);
+    }
+
+    if (aft->free)
+    {
+    }
+
+    return block;
+}
+
 void dfree(void *memory)
 {
     if (memory != NULL)
     {
         struct head *block = ((struct head *)memory) - HEAD;
-
         struct head *aft = after(block);
+
+        //
+        merge(block);
 
         block->free = TRUE;
         aft->bfree = TRUE;
 
         insert(block);
     }
+
+    // Merge mememory
 
     return;
 }

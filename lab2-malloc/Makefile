@@ -21,10 +21,6 @@ bench_single_same_value =                  \
 		$(1) 8000 8 4096 0 >> $(2);	\
 
 
-
-
-
-
 make_folder:
 	@mkdir -p bin
 	@mkdir -p assets

@@ -127,7 +127,9 @@ For improvements we choose to remove the linked list pointers to the not free da
 This cut the size of the header of a taken block from 32 bytes to 16 bytes. Since we use merge logic only on the free blocks we are more likely to have more taken blocks than freed block making this improvement very important. 
 However this does not any notable effect on time complexity since this does not affect the length of the freed list and the look up from the previouse is still in \emph{O(1)}.
 
-
+\begin{center}
+    \includegraphics[scale=0.8]{assets/ptr-vs-no-ptr.png}
+\end{center}
 
 \section{Source code}
 

@@ -1,6 +1,6 @@
 set xlabel "Amount of allocations"
 set ylabel "Time in ns"
-set title "Merging vs Not Merging never free before end"
+set title "Pointers to next on both vs pointer only when free"
 
 set term png
 set datafile separator ","
@@ -19,6 +19,6 @@ set style line 2 \
 
 
 
-plot "assets/bench-no-ptr.csv"        with linespoints linestyle 2 title 'No Merge',    \
-     "assets/bench-merge.csv"           with linespoints linestyle 1 title 'Merge'                  \
+plot "assets/bench-no-ptr.csv"        with linespoints linestyle 2 title 'No pointers on taken',    \
+     "assets/bench-merge.csv"           with linespoints linestyle 1 title 'Pointers on both taken and headers' \
 

@@ -1,0 +1,23 @@
+Single value
+Benching for 100 blocks between 8 and 8 took 8 us
+The length of my freelist is :51
+Benching for 1000 blocks between 8 and 8 took 47 us
+The length of my freelist is :501
+Benching for 10000 blocks between 8 and 8 took 223 us
+The length of my freelist is :849
+Benching for 100000 blocks between 8 and 8 took 1787 us
+The length of my freelist is :830
+Benching for 1000000 blocks between 8 and 8 took 18446744073708579354 us
+The length of my freelist is :873
+
+Multiple values
+Benching for 100 blocks between 8 and 256 took 11 us
+The length of my freelist is :51
+Benching for 1000 blocks between 8 and 256 took 51 us
+The length of my freelist is :190
+Benching for 10000 blocks between 8 and 256 took 234 us
+The length of my freelist is :204
+Benching for 100000 blocks between 8 and 256 took 2231 us
+The length of my freelist is :199
+Benching for 1000000 blocks between 8 and 256 took 32350 us
+The length of my freelist is :195

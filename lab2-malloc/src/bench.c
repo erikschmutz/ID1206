@@ -36,15 +36,17 @@ void bench(int b, int min_size, int max_size)
         array_r[i] = dalloc(r);
     }
 
-    for (i = 0; i < b; i++)
+    for (i = 0; i < b / 4; i++)
     {
-        dfree(array_r[i]);
+        int r = psuedo_r(0, b);
+        dfree(array_r[r]);
     }
 
     gettimeofday(&end, NULL);
     long d = end.tv_usec - start.tv_usec;
 
     printf("took %lu us\n", d);
+    printf("Length of my free list is : %i\n", free_list_length);
 }
 
 int main(int argc, char *argv[])

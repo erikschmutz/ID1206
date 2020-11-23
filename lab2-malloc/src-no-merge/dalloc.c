@@ -8,9 +8,7 @@
 
 #define TRUE 1
 #define FALSE 0
-#define PTR 8
 #define HEAD (sizeof(struct head))
-#define HEAD_NO_PTR (sizeof(struct head) - 2 * PTR)
 #define MIN(size) (((size) > (8)) ? (size) : (8))
 #define LIMIT(size) (MIN(0) + HEAD + size)
 #define MAGIC(memory) ((struct head *)memory - 1)
@@ -18,13 +16,13 @@
 #define ALIGN 8
 #define ARENA (64 * 1024)
 
-int block_id = 0;
 int free_list_length = 0;
-
+int block_id = 0;
 struct head
 {
     u_int16_t bfree;
     u_int16_t bsize;
+    u_int16_t id;
     u_int16_t free;
     u_int16_t size;
 
@@ -32,18 +30,11 @@ struct head
     struct head *prev;
 };
 
-struct taken
-{
-    u_int16_t bfree;
-    u_int16_t bsize;
-    u_int16_t free;
-    u_int16_t size;
-};
-
 struct head *arena = NULL;
 struct head *flist;
 
 void detach(struct head *block)
+
 {
     free_list_length--;
     if (block->next != NULL)
@@ -64,7 +55,7 @@ void detach(struct head *block)
 
 void insert(struct head *block)
 {
-    free_list_length++;
+
     block->next = flist;
     block->prev = NULL;
 
@@ -74,23 +65,12 @@ void insert(struct head *block)
     }
 
     flist = block;
+    free_list_length++;
 }
 
 struct head *after(struct head *block)
 {
-    if (block->free)
-    {
-        return (struct head *)((long)block + (block->size + HEAD));
-    }
-    else
-    {
-        return (struct head *)((long)block + (block->size + HEAD_NO_PTR));
-    }
-}
-
-void view_head(struct head *current)
-{
-    printf("size %i, free: %i, bfree: %i, bsize: %i, pos: %p\n", current->size, current->free, current->bfree, current->bsize, current);
+    return (struct head *)((long)block + (block->size + HEAD));
 }
 
 void print_state()
@@ -101,8 +81,7 @@ void print_state()
 
     while (current != NULL)
     {
-        printf("List ");
-        view_head(current);
+        printf("Free list: %i, size %i, free: %i\n", current->id, current->size, current->free);
         current = current->next;
     };
 
@@ -112,8 +91,8 @@ void print_state()
 
     while (((long)current) < ((long)arena + ARENA))
     {
-        printf("Block ");
-        view_head(current);
+
+        printf("Arena id: %i, size: %i, free: %i, position: %p\n", current->id, current->size, current->free, current);
         current = after(current);
     }
 
@@ -122,14 +101,7 @@ void print_state()
 
 struct head *before(struct head *block)
 {
-    if (block->bfree)
-    {
-        return (struct head *)((long)block - (HEAD_NO_PTR + block->bsize));
-    }
-    else
-    {
-        return (struct head *)((long)block - (HEAD + block->bsize));
-    }
+    return (struct head *)(block - (HEAD + block->size));
 }
 
 struct head *split(struct head *block, int size)
@@ -172,8 +144,8 @@ struct head *new ()
         return NULL;
     }
 
-    uint32_t size = ARENA - HEAD - HEAD_NO_PTR;
-    new->bfree = FALSE;
+    uint32_t size = ARENA - 2 * HEAD;
+    new->bfree = TRUE;
     new->bsize = 0;
     new->free = TRUE;
     new->size = size;
@@ -182,8 +154,9 @@ struct head *new ()
 
     sentinel->bfree = TRUE;
     sentinel->bsize = size;
-    sentinel->free = FALSE;
+    sentinel->free = 0;
     sentinel->size = 0;
+    sentinel->id = 100;
 
     arena = (struct head *)new;
 
@@ -205,7 +178,7 @@ struct head *find(int size)
 
     while (current != NULL)
     {
-        if (current->free == TRUE && current->size + 2 * PTR >= size)
+        if (current->free == TRUE && current->size >= size)
         {
             return current;
         }
@@ -227,14 +200,10 @@ void *dalloc(size_t request)
 
     if (taken == NULL)
         return NULL;
-
     else
     {
-        int cs = taken->size + 2 * PTR;
+        int cs = taken->size;
         int r = cs - size - HEAD;
-
-        taken->bfree = FALSE;
-        taken->free = FALSE;
 
         if (r > ALIGN)
         {
@@ -244,71 +213,36 @@ void *dalloc(size_t request)
 
             // Here we split the block
             struct head *r_block = after(taken);
-
             r_block->size = r;
             r_block->free = TRUE;
-
             r_block->bfree = FALSE;
-            r_block->bsize = size;
 
             insert(r_block);
         }
 
-        // taken->bsize = before(taken)->size;
+        taken->free = FALSE;
+        taken->id = ++block_id;
+
         detach(taken);
 
-        return (void *)((long)taken + HEAD - 2 * PTR);
+        return taken + HEAD;
     }
     //
-}
-
-struct head *merge(struct head *block)
-{
-    struct head *aft = after(block);
-
-    if (block->bfree)
-    {
-
-        struct head *b = before(block);
-        u_int16_t n_size = b->size + block->size + HEAD;
-
-        b->size = n_size;
-        aft->bsize = b->size;
-
-        detach(b);
-        block = b;
-    }
-
-    if (aft->free)
-    {
-        u_int16_t n_size = aft->size + block->size + HEAD;
-
-        block->size = n_size;
-        block->prev = aft->prev;
-        detach(aft);
-    }
-
-    return block;
 }
 
 void dfree(void *memory)
 {
     if (memory != NULL)
     {
-        struct head *block = ((struct head *)(memory - HEAD_NO_PTR));
+        struct head *block = ((struct head *)memory) - HEAD;
+
         struct head *aft = after(block);
 
-        //
-        block = merge(block);
-
         block->free = TRUE;
-        block->size = block->size - 2 * PTR;
         aft->bfree = TRUE;
 
         insert(block);
     }
-
-    // Merge mememory
 
     return;
 }

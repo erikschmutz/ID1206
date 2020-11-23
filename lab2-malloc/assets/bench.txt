@@ -1,0 +1,42 @@
+
+Multiple values no merge
+Benching for 100 blocks between 8 and 256 took 11 us
+The length of my freelist is :26
+Benching for 100 blocks between 8 and 256 took 11 us
+The length of my freelist is :26
+Benching for 1000 blocks between 8 and 256 took 49 us
+The length of my freelist is :99
+Benching for 10000 blocks between 8 and 256 took 209 us
+The length of my freelist is :115
+Benching for 100000 blocks between 8 and 256 took 1945 us
+The length of my freelist is :105
+Benching for 1000000 blocks between 8 and 256 took 24550 us
+The length of my freelist is :88
+
+Multiple values merge
+Benching for 100 blocks between 8 and 256 took 12 us
+The length of my freelist is :20
+Benching for 100 blocks between 8 and 256 took 12 us
+The length of my freelist is :20
+Benching for 1000 blocks between 8 and 256 took 50 us
+The length of my freelist is :80
+Benching for 10000 blocks between 8 and 256 took 212 us
+The length of my freelist is :89
+Benching for 100000 blocks between 8 and 256 took 2070 us
+The length of my freelist is :85
+Benching for 1000000 blocks between 8 and 256 took 24595 us
+The length of my freelist is :67
+
+Multiple values merge optimized
+Benching for 100 blocks between 8 and 256 took 11 us
+Length of my free list is : 20
+Benching for 100 blocks between 8 and 256 took 12 us
+Length of my free list is : 20
+Benching for 1000 blocks between 8 and 256 took 30 us
+Length of my free list is : 19
+Benching for 10000 blocks between 8 and 256 took 208 us
+Length of my free list is : 33
+Benching for 100000 blocks between 8 and 256 took 2899 us
+Length of my free list is : 30
+Benching for 1000000 blocks between 8 and 256 took 28229 us
+Length of my free list is : 23

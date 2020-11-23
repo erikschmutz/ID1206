@@ -16,6 +16,7 @@
 #define ALIGN 8
 #define ARENA (64 * 1024)
 
+int free_list_length = 0;
 int block_id = 0;
 struct head
 {
@@ -33,7 +34,9 @@ struct head *arena = NULL;
 struct head *flist;
 
 void detach(struct head *block)
+
 {
+    free_list_length--;
     if (block->next != NULL)
     {
         block->next->prev = block->prev;
@@ -62,6 +65,7 @@ void insert(struct head *block)
     }
 
     flist = block;
+    free_list_length++;
 }
 
 struct head *after(struct head *block)

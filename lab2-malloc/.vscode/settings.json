@@ -13,6 +13,8 @@
         "unordered_map": "c",
         "utility": "c",
         "vector": "c",
-        "errno.h": "c"
+        "errno.h": "c",
+        "merge-dalloc.h": "c",
+        "dalloc.h": "c"
     }
 }

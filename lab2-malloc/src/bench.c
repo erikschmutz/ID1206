@@ -17,10 +17,9 @@ int psuedo_r(int min, int max)
     return min + rand() % (max - min);
 }
 
-void bench(int b, int min_size, int max_size)
+void bench(int b, int min_size, int max_size, int percent_freed)
 {
     void *array_r[b];
-    printf("Benching for %i blocks between %i and %i ", b, min_size, max_size);
 
     long t0 = (unsigned long)time(NULL);
 
@@ -30,27 +29,35 @@ void bench(int b, int min_size, int max_size)
     gettimeofday(&start, NULL);
 
     int i;
+    int p = percent_freed != 0 ? (int)(1 / ((float)percent_freed / 100)) : -1;
+
     for (i = 0; i < b; i++)
     {
         int r = psuedo_r(min_size, max_size);
         array_r[i] = dalloc(r);
+
+        if (p != -1 && i % p != 0)
+        {
+            dfree(array_r[i]);
+            array_r[i] = NULL;
+        }
     }
 
-    for (i = 0; i < b / 4; i++)
+    for (i = 0; i < b; i++)
     {
-        int r = psuedo_r(0, b);
-        dfree(array_r[r]);
+        if (array_r[i] != NULL)
+            dfree(array_r[i]);
     }
 
     gettimeofday(&end, NULL);
-    long d = end.tv_usec - start.tv_usec;
 
-    printf("took %lu us\n", d);
-    printf("Length of my free list is : %i\n", free_list_length);
+    long d = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
+
+    printf("%i,%lu\n", b, d);
 }
 
 int main(int argc, char *argv[])
 {
     init();
-    bench(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+    bench(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), atoi(argv[4]));
 }

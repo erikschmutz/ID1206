@@ -1,4 +1,5 @@
 /assets
 /bin
 /.vscode
+.DS_Store
 report.pdf

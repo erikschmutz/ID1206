@@ -53,10 +53,12 @@ bench: compile
 
 
 plot: bench
-	@gnuplot -p bench.gnu 
-	@gnuplot -p bench-same.gnu  
-	@gnuplot -p bench-no-ptr.gnu  
+	@gnuplot -p docs/bench.gnu 
+	@gnuplot -p docs/bench-same.gnu  
+	@gnuplot -p docs/bench-no-ptr.gnu  
 
 
-report: bench
-	@pdflatex -interaction nonstopmode -halt-on-error -file-line-error -output-directory=target  docs/report.tex
+report: plot
+	@pdflatex -interaction nonstopmode -halt-on-error -file-line-error docs/report.tex > report.log
+	@rm report.aux
+	@rm report.log

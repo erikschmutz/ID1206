@@ -1,13 +1,13 @@
 Single value
-Benching for 100 blocks between 8 and 8 took 6 us
-Benching for 1000 blocks between 8 and 8 took 62 us
-Benching for 10000 blocks between 8 and 8 took 213 us
-Benching for 100000 blocks between 8 and 8 took 1463 us
-Benching for 1000000 blocks between 8 and 8 took 13884 us
+Benching for 100 blocks between 8 and 8 took 2 us
+Benching for 1000 blocks between 8 and 8 took 13 us
+Benching for 10000 blocks between 8 and 8 took 132 us
+Benching for 100000 blocks between 8 and 8 took 1563 us
+Benching for 1000000 blocks between 8 and 8 took 14884 us
 
 Multiple values
 Benching for 100 blocks between 8 and 256 took 13 us
-Benching for 1000 blocks between 8 and 256 took 52 us
-Benching for 10000 blocks between 8 and 256 took 206 us
-Benching for 100000 blocks between 8 and 256 took 1831 us
-Benching for 1000000 blocks between 8 and 256 took 18280 us
+Benching for 1000 blocks between 8 and 256 took 30 us
+Benching for 10000 blocks between 8 and 256 took 258 us
+Benching for 100000 blocks between 8 and 256 took 1931 us
+Benching for 1000000 blocks between 8 and 256 took 21819 us

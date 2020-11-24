@@ -28,6 +28,8 @@ make_folder:
 
 compile: make_folder
 	@gcc src/bench.c tests/no-merge/dalloc.c -o bin/bench-no-merge.o
+	@gcc src/length.c tests/no-merge/dalloc.c -o bin/length-bench-no-merge.o
+	@gcc src/length.c tests/merge/dalloc.c -o bin/length-bench-merge.o
 	@gcc src/bench.c tests/merge/dalloc.c -o bin/bench-merge.o
 	@gcc src/bench.c src/dalloc.c -o bin/bench.o
 	@gcc src/view.c src/dalloc.c -o bin/view.o 
@@ -42,6 +44,9 @@ bench: compile
 	@$(call bench_single,bin/bench-merge.o,assets/bench-merge.csv)
 	@$(call bench_single,bin/bench.o,assets/bench-no-ptr.csv)
 
+	@$(call bench_single,bin/length-bench-no-merge.o,assets/length-bench-no-merge.csv)
+	@$(call bench_single,bin/length-bench-merge.o,assets/length-bench-merge.csv)
+
 	@$(call bench_single_same_value,bin/bench-no-merge.o,assets/bench-no-merge-same.csv)
 	@$(call bench_single_same_value,bin/bench-merge.o,assets/bench-merge-same.csv)
 	@$(call bench_single_same_value,bin/bench.o,assets/bench-no-ptr-same.csv)
@@ -52,6 +57,7 @@ plot: bench
 	@gnuplot -p docs/bench.gnu 
 	@gnuplot -p docs/bench-same.gnu  
 	@gnuplot -p docs/bench-no-ptr.gnu  
+	@gnuplot -p docs/free-list-size.gnu  
 
 
 report: plot

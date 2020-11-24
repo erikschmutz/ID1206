@@ -82,14 +82,13 @@ To resolve this we implemented a merging mechanism. Which in the free list merge
 
 Now looking at the code sited in \emph{Listing 1}, we are not able to allocated and free and get back to where we started, which allows us to allocated as much as we have in our free list.
 
-Another aspect is that the time it takes to allocate a block is dependent on how long the free list is. Here we are able to see how long the list becomes when first allocates the entire list and then frees 75\% of the list
+Another aspect is that the time it takes to allocate a block is dependent on how long the free list is. Here we are able to see how long the list becomes when first allocates the entire list and then frees 75\% of the list.
 
 \begin{center}
     \includegraphics[scale=0.8]{assets/free-list-size.png}
 \end{center}
 
-
-If it is a long free list we are going to have a greater time complexity. Therefor will merging block create a smaller list which in turns makes the programm faster.
+If it is a long free list it is going to take longer time. Therefore will merging block create a smaller list which in turns makes the programm faster.
 
 
 \section{Some issues we ran into}

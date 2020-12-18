@@ -39,6 +39,21 @@ int green_yield()
     return 0;
 }
 
+void enqueue(green_t *new)
+{
+
+    green_t *t = running;
+
+    while (t->next != NULL)
+    {
+        t = t->next;
+    }
+    t->next = new;
+}
+
+void dequeue()
+{
+}
 int green_create(green_t *new, void *(*fun)(void *), void *arg)
 {
     ucontext_t *cntx = (ucontext_t *)malloc(sizeof(ucontext_t));

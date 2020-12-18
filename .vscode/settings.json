@@ -16,6 +16,10 @@
         "unordered_map": "c",
         "utility": "c",
         "vector": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "ucontext.h": "c",
+        "setjmp.h": "c",
+        "stdio.h": "c",
+        "unistd.h": "c"
     }
 }

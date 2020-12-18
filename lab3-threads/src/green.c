@@ -1,106 +1,77 @@
 
-#define _XOPEN_SOURCE 600
-#include "stdio.h"
-#include "stdlib.h"
-#include <unistd.h>
-#include "ucontext.h"
+#include "green.h"
+#include <stdlib.h>
+#include <stdio.h>
+#define FALSE 0
+#define TRUE 1
+#define STACK_SIZE 4096
+static ucontext_t main_cntx = {0};
 
-static int is_done = 0;
-static ucontext_t cntx_main;
+static green_t main_green = {
+    &main_cntx, // ucontext_t *context
+    NULL,       // void *(*fun)(void *)
+    NULL,       // void *arg
+    NULL,       // struct green_t *next
+    NULL,       // struct green_t *join
+    NULL,       // void* retval
+    FALSE       //  int zombie
+};
 
-void run_one()
+static green_t *running = &main_green;
+static void init() __attribute__((constructor));
+
+void init()
 {
-    int i = 0;
-    printf("Starting run two");
-
-    while (i < 5)
-    {
-        sleep(1);
-        i++;
-    }
-
-    printf("done_one\n");
-    is_done++;
+    getcontext(&main_cntx);
 }
 
-void run_two()
+int green_thread()
 {
-    int i = 0;
-    printf("Starting run two");
+    green_t *this = running;
 
-    while (i < 3)
-    {
-        sleep(1);
-        i++;
-    }
+    void *result = (*this->fun)(this->arg);
 
-    printf("done two\n");
+    return 0;
 }
 
-void test(void *args)
+int green_yield()
 {
-    printf("test!!1");
-
-    return;
+    return 0;
 }
 
-typedef struct action
+int green_create(green_t *new, void *(*fun)(void *), void *arg)
 {
-    void (*func)(void *);
-} action;
+    ucontext_t *cntx = (ucontext_t *)malloc(sizeof(ucontext_t));
+    getcontext(cntx);
 
-void _wait()
-{
-    while (is_done < 1)
-    {
-    }
+    void *stack = malloc(STACK_SIZE);
+    cntx->uc_stack.ss_sp = stack;
+    cntx->uc_stack.ss_size = STACK_SIZE;
+    makecontext(cntx, green_thread, 0);
+
+    new->context = cntx;
+    new->fun = fun;
+    new->arg = arg;
+    new->next = NULL;
+    new->join = NULL;
+    new->retval = NULL;
+    new->zombie = FALSE;
+
+    running->next = NULL;
+    running = new;
+
+    return 0;
 }
 
-ucontext_t *run(struct action *a)
+int green_join()
 {
-
-    void *stack = malloc(sizeof(char) * 1024 + 1);
-
-    ucontext_t *ctx = malloc(sizeof(ctx));
-    getcontext(ctx);
-
-    ctx->uc_link = &cntx_main;
-    ctx->uc_stack.ss_sp = stack;
-    ctx->uc_stack.ss_size = sizeof(char) * 1024;
-
-    makecontext(ctx, a->func, 0);
-
-    return ctx;
+    return 0;
 }
 
 int main()
 {
-
-    struct action *a1 = malloc(sizeof(struct action));
-
-    struct action *a2 = malloc(sizeof(struct action));
-
-    a1->func = &run_one;
-    a2->func = &run_two;
-
-    // getcontext(&cntx_main);
-    printf("TEST");
-    ucontext_t *run_context = run(a1);
-    // _wait();
-
-    if (!run_context)
-    {
-        printf("ptr does not exists!");
-    }
-    else
-    {
-        printf("%p", run_context->uc_stack.ss_sp);
-    }
-    // {
-    // }
-    // printf("%i", run_context->uc_onstack);
-
-    swapcontext(&cntx_main, run_context);
-    // // run_one();
-    // // run_two();
+    calc_heavy();
+    calc_heavy();
+    calc_heavy();
+    return 0;
 }

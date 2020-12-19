@@ -39,21 +39,54 @@ int green_yield()
     return 0;
 }
 
-void enqueue(green_t *new)
+void enqueue(green_t *thread)
 {
 
-    green_t *t = running;
+    green_t *t = &main_green;
 
     while (t->next != NULL)
     {
         t = t->next;
     }
-    t->next = new;
+    t->next = thread;
 }
 
-void dequeue()
+struct green_t *dequeue()
 {
+    if (main_green.next == NULL)
+    {
+        printf("This is the final thread");
+        return &main_green;
+    }
+
+    struct green_t *ready = main_green.next;
+    main_green.next = ready->next;
+    ready->next = NULL;
+    return ready;
 }
+
+void green_thread()
+{
+
+    green_t *this = running;
+    void *result = (this->fun)(this->arg);
+    this->retval = result;
+    this->zombie = TRUE;
+    green_t *next = dequeue();
+    running = next;
+    setcontext(next->context);
+}
+
+void green_yield()
+{
+    green_t *susp = running;
+    enqueue(susp);
+    green_t *next = dequeue();
+    running = next;
+
+    swapcontext(susp->context, next->context);
+}
+
 int green_create(green_t *new, void *(*fun)(void *), void *arg)
 {
     ucontext_t *cntx = (ucontext_t *)malloc(sizeof(ucontext_t));
@@ -78,8 +111,22 @@ int green_create(green_t *new, void *(*fun)(void *), void *arg)
     return 0;
 }
 
-int green_join()
+int green_join(green_t *thread, void **res)
 {
+    if (!thread->zombie)
+    {
+        green_t *susp = running;
+        susp->join = thread;
+        enqueue(susp);
+        green_t *next = susp->next;
+        running = next;
+        swapcontext(susp->context, next->context);
+    }
+
+    res = running->retval;
+
+    free(thread->context);
+
     return 0;
 }
 

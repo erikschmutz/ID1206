@@ -2,10 +2,8 @@
 #include "green.h"
 #include <stdlib.h>
 #include <stdio.h>
-#define FALSE 0
-#define TRUE 1
-#define STACK_SIZE 4096
-static ucontext_t main_cntx = {0};
+
+static ucontext_t main_cntx;
 
 static green_t main_green = {
     &main_cntx, // ucontext_t *context
@@ -14,70 +12,79 @@ static green_t main_green = {
     NULL,       // struct green_t *next
     NULL,       // struct green_t *join
     NULL,       // void* retval
-    FALSE       //  int zombie
+    FALSE,      //  int zombie
+    -1          // id of the process
 };
+
+int HAS_INITIALIZED = FALSE;
 
 static green_t *running = &main_green;
 static void init() __attribute__((constructor));
 
 void init()
 {
+
     getcontext(&main_cntx);
+    printf(">>%i\n", main_cntx.uc_mcontext);
+    HAS_INITIALIZED = TRUE;
+}
+
+void enqueue(green_t *thread)
+{
+    green_t *current = &main_green;
+
+    while (current->next != NULL)
+        current = current->next;
+
+    current->next = thread;
+}
+
+struct green_t *dequeue()
+{
+
+    // main_green => next_green => third_green
+    // Will return next_green and point main_green to
+    // third green
+    if (main_green.next == NULL)
+        return &main_green;
+
+    struct green_t *ready = main_green.next;
+    main_green.next = ready->next;
+    ready->next = NULL;
+
+    return ready;
 }
 
 int green_thread()
 {
+
+    //
     green_t *this = running;
 
-    void *result = (*this->fun)(this->arg);
+    // Startat
+    void *result = (this->fun)(this->arg);
+    this->retval = result;
+
+    // Sets the zombie value to true
+    // since the function is complete
+    this->zombie = TRUE;
+
+    green_t *next = dequeue();
+    running = next;
+
+    printf("3>>%i\n", next->context->uc_mcontext);
+
+    if (next == NULL)
+    {
+        printf("But wait there no next...");
+    }
+
+    setcontext(next->context);
 
     return 0;
 }
 
 int green_yield()
-{
-    return 0;
-}
-
-void enqueue(green_t *thread)
-{
-
-    green_t *t = &main_green;
-
-    while (t->next != NULL)
-    {
-        t = t->next;
-    }
-    t->next = thread;
-}
-
-struct green_t *dequeue()
-{
-    if (main_green.next == NULL)
-    {
-        printf("This is the final thread");
-        return &main_green;
-    }
-
-    struct green_t *ready = main_green.next;
-    main_green.next = ready->next;
-    ready->next = NULL;
-    return ready;
-}
-
-void green_thread()
-{
-
-    green_t *this = running;
-    void *result = (this->fun)(this->arg);
-    this->retval = result;
-    this->zombie = TRUE;
-    green_t *next = dequeue();
-    running = next;
-    setcontext(next->context);
-}
-
-void green_yield()
 {
     green_t *susp = running;
     enqueue(susp);
@@ -85,6 +92,8 @@ void green_yield()
     running = next;
 
     swapcontext(susp->context, next->context);
+
+    return 0;
 }
 
 int green_create(green_t *new, void *(*fun)(void *), void *arg)
@@ -95,7 +104,7 @@ int green_create(green_t *new, void *(*fun)(void *), void *arg)
     void *stack = malloc(STACK_SIZE);
     cntx->uc_stack.ss_sp = stack;
     cntx->uc_stack.ss_size = STACK_SIZE;
-    makecontext(cntx, green_thread, 0);
+    makecontext(cntx, (void (*)())green_thread, 0);
 
     new->context = cntx;
     new->fun = fun;
@@ -127,13 +136,5 @@ int green_join(green_t *thread, void **res)
 
     free(thread->context);
 
-    return 0;
-}
-
-int main()
-{
-    calc_heavy();
-    calc_heavy();
-    calc_heavy();
     return 0;
 }

@@ -2,6 +2,7 @@
     "files.associations": {
         "ucontext.h": "c",
         "stdlib.h": "c",
-        "green.h": "c"
+        "green.h": "c",
+        "iterator": "c"
     }
 }

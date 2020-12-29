@@ -7,9 +7,9 @@ compile: make_folder
 
 start: compile
 	@./bin/green.o
-	@echo ""
+	
 	
 test: compile
 	@./bin/test.o
-	@echo ""
+
 	

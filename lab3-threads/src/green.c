@@ -25,7 +25,6 @@ void init()
 {
 
     getcontext(&main_cntx);
-    printf(">>%i\n", main_cntx.uc_mcontext);
     HAS_INITIALIZED = TRUE;
 }
 
@@ -34,7 +33,9 @@ void enqueue(green_t *thread)
     green_t *current = &main_green;
 
     while (current->next != NULL)
+    {
         current = current->next;
+    }
 
     current->next = thread;
 }
@@ -42,17 +43,18 @@ void enqueue(green_t *thread)
 struct green_t *dequeue()
 {
 
-    // main_green => next_green => third_green
+    // main_green => a_green => b_green => c_green
     // Will return next_green and point main_green to
     // third green
     if (main_green.next == NULL)
         return &main_green;
 
-    struct green_t *ready = main_green.next;
-    main_green.next = ready->next;
-    ready->next = NULL;
+    struct green_t *next = main_green.next;
 
-    return ready;
+    main_green.next = main_green.next->next;
+    next->next = NULL;
+
+    return next;
 }
 
 int green_thread()
@@ -72,8 +74,6 @@ int green_thread()
     green_t *next = dequeue();
     running = next;
 
-    printf("3>>%i\n", next->context->uc_mcontext);
-
     if (next == NULL)
     {
         printf("But wait there no next...");
@@ -88,6 +88,7 @@ int green_yield()
 {
     green_t *susp = running;
     enqueue(susp);
+
     green_t *next = dequeue();
     running = next;
 
@@ -98,6 +99,7 @@ int green_yield()
 
 int green_create(green_t *new, void *(*fun)(void *), void *arg)
 {
+
     ucontext_t *cntx = (ucontext_t *)malloc(sizeof(ucontext_t));
     getcontext(cntx);
 
@@ -114,26 +116,33 @@ int green_create(green_t *new, void *(*fun)(void *), void *arg)
     new->retval = NULL;
     new->zombie = FALSE;
 
-    running->next = NULL;
-    running = new;
+    enqueue(new);
 
     return 0;
 }
 
+void run_next()
+{
+    green_t *current = running;
+    green_t *next = dequeue();
+    running = next;
+    printf("%p\n", current->context);
+    printf("%p\n", next->context);
+    // swapcontext(current->context, next->context);
+}
+
 int green_join(green_t *thread, void **res)
 {
+    printf("Switching 'thread'...");
     if (!thread->zombie)
     {
+
         green_t *susp = running;
         susp->join = thread;
-        enqueue(susp);
-        green_t *next = susp->next;
-        running = next;
-        swapcontext(susp->context, next->context);
+        run_next();
     }
 
     res = running->retval;
-
     free(thread->context);
 
     return 0;

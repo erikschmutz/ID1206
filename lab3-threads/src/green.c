@@ -3,8 +3,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static ucontext_t main_cntx;
+int id = 0;
 
+static ucontext_t main_cntx;
 static green_t main_green = {
     &main_cntx, // ucontext_t *context
     NULL,       // void *(*fun)(void *)
@@ -57,6 +58,19 @@ struct green_t *dequeue()
     return next;
 }
 
+struct green_t *next_thread()
+{
+
+    green_t *n = dequeue();
+
+    if (n == NULL)
+        return NULL;
+    if (n->zombie)
+        return next_thread();
+
+    return n;
+}
+
 int green_thread()
 {
 
@@ -65,13 +79,14 @@ int green_thread()
 
     // Startat
     void *result = (this->fun)(this->arg);
-    this->retval = result;
+
+    (*this).retval = result;
 
     // Sets the zombie value to true
     // since the function is complete
     this->zombie = TRUE;
 
-    green_t *next = dequeue();
+    green_t *next = next_thread();
     running = next;
 
     if (next == NULL)
@@ -89,7 +104,7 @@ int green_yield()
     green_t *susp = running;
     enqueue(susp);
 
-    green_t *next = dequeue();
+    green_t *next = next_thread();
     running = next;
 
     swapcontext(susp->context, next->context);
@@ -115,34 +130,38 @@ int green_create(green_t *new, void *(*fun)(void *), void *arg)
     new->join = NULL;
     new->retval = NULL;
     new->zombie = FALSE;
+    new->id = ++id;
 
     enqueue(new);
 
     return 0;
 }
 
-void run_next()
+struct green_t *run_next()
 {
     green_t *current = running;
-    green_t *next = dequeue();
+    green_t *next = next_thread();
     running = next;
-    printf("%p\n", current->context);
-    printf("%p\n", next->context);
-    // swapcontext(current->context, next->context);
+    swapcontext(current->context, next->context);
+    return next;
 }
 
 int green_join(green_t *thread, void **res)
 {
-    printf("Switching 'thread'...");
+
+    struct green_t *next;
+
     if (!thread->zombie)
     {
-
-        green_t *susp = running;
-        susp->join = thread;
-        run_next();
+        running->join = thread;
+        next = run_next();
     }
 
-    res = running->retval;
+    if (res != NULL)
+    {
+        *res = &thread->retval;
+    }
+
     free(thread->context);
 
     return 0;

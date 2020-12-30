@@ -4,17 +4,17 @@
 #include <assert.h>
 #include <stdlib.h>
 
-void test_runnable(void *arg)
+int test_runnable(void *arg)
 {
     int i = *(int *)arg;
     int loop = 4;
-    printf("tst...");
     while (loop > 0)
     {
-        printf("thread %d : %d\n", i, loop);
         loop--;
         green_yield();
     }
+
+    return 100 + i;
 }
 
 void should_initlize()
@@ -25,13 +25,34 @@ void should_initlize()
 void should_execute()
 {
 
-    // green_t g0, g1;
-    // int a0 = 0, a1 = 1;
+    green_t g0, g1, g2;
+    int a0 = 0, a1 = 1, a2 = 2;
 
-    // green_create(&g0, (void *(*)(void *))test_runnable, &a0);
-    // green_create(&g1, (void *(*)(void *))test_runnable, &a1);
-    // green_join(&g0, NULL);
-    // green_join(&g1, NULL);
+    green_create(&g0, (void *(*)(void *))test_runnable, &a0);
+    green_create(&g1, (void *(*)(void *))test_runnable, &a1);
+    green_create(&g2, (void *(*)(void *))test_runnable, &a2);
+
+    int *r0 = malloc(sizeof(int)), *r1 = malloc(sizeof(int)), *r2 = malloc(sizeof(int));
+
+    *r0 = -1, *r1 = -2, *r2 = -3;
+
+    assert(*r0 == -1);
+    assert(*r1 == -2);
+    assert(*r2 == -3);
+
+    free(r0);
+    free(r1);
+
+    green_join(&g0, &r0);
+    green_join(&g1, &r1);
+
+    assert(*r0 == 100);
+    assert(*r1 == 101);
+    assert(*r2 == -3);
+
+    free(r2);
+    green_join(&g2, &r2);
+    assert(*r2 == 102);
 }
 
 void should_enque_and_dequeue()
@@ -64,13 +85,4 @@ int main()
     should_initlize();
     should_enque_and_dequeue();
     should_execute();
-
-    green_t g0, g1;
-    int a0 = 0, a1 = 1;
-
-    green_create(&g0, (void *(*)(void *))test_runnable, &a0);
-    green_create(&g1, (void *(*)(void *))test_runnable, &a1);
-
-    // green_join(&g0, NULL);
-    green_join(&g1, NULL);
 }

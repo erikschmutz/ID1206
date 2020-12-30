@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 int id = 0;
+int cond_id = 0;
 
 static ucontext_t main_cntx;
 static green_t main_green = {
@@ -165,4 +166,72 @@ int green_join(green_t *thread, void **res)
     free(thread->context);
 
     return 0;
+}
+
+//
+//
+//
+
+void add_observer(green_cond_t *cond, green_t *context)
+{
+    struct green_list_node *current = cond->list;
+
+    if (current == NULL)
+    {
+        cond->list = (struct green_list_node *)malloc(sizeof(struct green_list_node));
+        cond->list->item = context;
+        cond->list->next = NULL;
+
+        return;
+    }
+
+    while (current != NULL && current->next != NULL)
+    {
+        current = current->next;
+    }
+
+    current->next = malloc(sizeof(struct green_list_node));
+    current->next->item = context;
+    cond->list->next = NULL;
+}
+
+int len(struct green_list_node *list)
+{
+
+    int i = 0;
+    struct green_list_node *current = list;
+
+    while (current != NULL)
+    {
+        current = current->next;
+        i++;
+    }
+
+    return i;
+}
+
+void green_cond_init(green_cond_t *cond)
+{
+    cond->list = NULL;
+    cond->id = cond_id++;
+}
+
+void green_cond_wait(green_cond_t *cond)
+{
+    add_observer(cond, running);
+}
+
+void green_cond_signal(green_cond_t *cond)
+{
+    struct green_list_node *head = cond->list;
+
+    if (head != NULL)
+    {
+        printf("I AM HERE");
+        swapcontext(running->context, head->item->context);
+    }
+    else
+    {
+        green_yield();
+    }
 }

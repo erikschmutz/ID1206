@@ -4,6 +4,10 @@
 #include <assert.h>
 #include <stdlib.h>
 
+int flag = 0;
+struct green_cond_t cond;
+int message = 0;
+
 int test_runnable(void *arg)
 {
     int i = *(int *)arg;
@@ -15,6 +19,51 @@ int test_runnable(void *arg)
     }
 
     return 100 + i;
+}
+
+void test_condition(void *arg)
+{
+
+    int id = *((int *)arg);
+    int loop = 4;
+
+    while (loop > 0)
+    {
+        if (flag == id)
+        {
+            // printf("thread %d : %d\n", id, loop);
+            loop--;
+            flag = (id + 1) % 2;
+            green_cond_signal(&cond);
+        }
+        else
+        {
+            green_cond_wait(&cond);
+        }
+    }
+
+    return;
+}
+
+void test_condition_producer()
+{
+}
+
+void test_condition_consumer()
+{
+    int prev_message;
+    printf("New subber...");
+
+    while (TRUE)
+    {
+
+        if (prev_message != message)
+        {
+            printf("New message %i", message);
+        }
+
+        green_cond_wait(&cond);
+    }
 }
 
 void should_initlize()
@@ -79,10 +128,53 @@ void should_enque_and_dequeue()
     assert(dequeue()->id == -1);
 }
 
+void should_be_able_to_create_condition()
+{
+
+    struct green_cond_t *condition = (struct green_cond_t *)malloc(sizeof(struct green_cond_t));
+
+    green_cond_init(condition);
+    assert(len(condition->list) == 0);
+
+    green_cond_wait(condition);
+    assert(1 == len(condition->list));
+}
+
+void should_be_able_to_execute_with_condition()
+{
+    int a0 = 0, a1 = 1;
+    green_t g0, g1;
+
+    green_create(&g0, (void *(*)(void *))test_condition, &a0);
+    green_create(&g1, (void *(*)(void *))test_condition, &a1);
+
+    green_join(&g0, NULL);
+    green_join(&g1, NULL);
+
+    green_cond_init(&cond);
+}
+
+void should_be_able_to_execute_a_pub_sub()
+{
+    int a0 = 0, a1 = 1;
+    green_t g0, g1;
+
+    green_create(&g0, (void *(*)(void *))test_condition_consumer, &a0);
+    green_create(&g1, (void *(*)(void *))test_condition_producer, &a1);
+
+    green_join(&g0, NULL);
+    green_join(&g1, NULL);
+
+    green_cond_init(&cond);
+}
+
 int main()
 {
 
     should_initlize();
     should_enque_and_dequeue();
     should_execute();
+    should_be_able_to_create_condition();
+    should_be_able_to_execute_with_condition();
+    should_be_able_to_execute_a_pub_sub();
 }

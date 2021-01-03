@@ -3,9 +3,11 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 int flag = 0;
 struct green_cond_t cond;
+struct green_cond_t pub_cond;
 int message = 0;
 
 int test_runnable(void *arg)
@@ -31,9 +33,11 @@ void test_condition(void *arg)
     {
         if (flag == id)
         {
-            // printf("thread %d : %d\n", id, loop);
+
             loop--;
             flag = (id + 1) % 2;
+
+            printf("thread %i : %i\n", id, loop);
             green_cond_signal(&cond);
         }
         else
@@ -47,6 +51,14 @@ void test_condition(void *arg)
 
 void test_condition_producer()
 {
+
+    while (TRUE)
+    {
+        sleep(1);
+        message = (message + 1) * message;
+        green_cond_signal(&pub_cond);
+        printf("New message from pub...\n");
+    }
 }
 
 void test_condition_consumer()
@@ -57,12 +69,12 @@ void test_condition_consumer()
     while (TRUE)
     {
 
-        if (prev_message != message)
-        {
-            printf("New message %i", message);
-        }
-
-        green_cond_wait(&cond);
+        // if (prev_message != message)
+        // {
+        //     printf("New message %i", message);
+        // }
+        printf("test");
+        green_cond_wait(&pub_cond);
     }
 }
 
@@ -119,9 +131,9 @@ void should_enque_and_dequeue()
     green_create(b, (void *(*)(void *))test_runnable, NULL);
     green_create(c, (void *(*)(void *))test_runnable, NULL);
 
+    assert(dequeue()->id == 0);
     assert(dequeue()->id == 1);
     assert(dequeue()->id == 2);
-    assert(dequeue()->id == 3);
 
     // Should not remove sentinel
     assert(dequeue()->id == -1);
@@ -138,6 +150,9 @@ void should_be_able_to_create_condition()
 
     green_cond_wait(condition);
     assert(1 == len(condition->list));
+
+    green_cond_dequeue(condition);
+    assert(0 == len(condition->list));
 }
 
 void should_be_able_to_execute_with_condition()
@@ -148,10 +163,9 @@ void should_be_able_to_execute_with_condition()
     green_create(&g0, (void *(*)(void *))test_condition, &a0);
     green_create(&g1, (void *(*)(void *))test_condition, &a1);
 
-    green_join(&g0, NULL);
-    green_join(&g1, NULL);
-
     green_cond_init(&cond);
+
+    green_join(&g1, NULL);
 }
 
 void should_be_able_to_execute_a_pub_sub()
@@ -162,10 +176,9 @@ void should_be_able_to_execute_a_pub_sub()
     green_create(&g0, (void *(*)(void *))test_condition_consumer, &a0);
     green_create(&g1, (void *(*)(void *))test_condition_producer, &a1);
 
-    green_join(&g0, NULL);
-    green_join(&g1, NULL);
+    green_cond_init(&pub_cond);
 
-    green_cond_init(&cond);
+    green_join(&g0, NULL);
 }
 
 int main()

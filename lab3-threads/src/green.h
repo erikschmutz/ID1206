@@ -47,3 +47,4 @@ void enqueue(green_t *thread);
 int HAS_INITIALIZED;
 static ucontext_t main_cntx;
 int len(struct green_list_node *list);
+struct green_t *green_cond_dequeue(green_cond_t *cond);

@@ -14,7 +14,7 @@ static green_t main_green = {
     NULL,       // struct green_t *next
     NULL,       // struct green_t *join
     NULL,       // void* retval
-    FALSE,      //  int zombie
+    FALSE,      // int zombie
     -1          // id of the process
 };
 
@@ -22,6 +22,19 @@ int HAS_INITIALIZED = FALSE;
 
 static green_t *running = &main_green;
 static void init() __attribute__((constructor));
+
+void view_run_list()
+{
+    struct green_t *current = &main_green;
+
+    while (current != NULL)
+    {
+        printf("{ id:%i, zombie: %i}", current->id, current->zombie);
+        current = current->next;
+    }
+
+    printf("\n");
+}
 
 void init()
 {
@@ -131,7 +144,7 @@ int green_create(green_t *new, void *(*fun)(void *), void *arg)
     new->join = NULL;
     new->retval = NULL;
     new->zombie = FALSE;
-    new->id = ++id;
+    new->id = id++;
 
     enqueue(new);
 
@@ -218,20 +231,35 @@ void green_cond_init(green_cond_t *cond)
 
 void green_cond_wait(green_cond_t *cond)
 {
+
     add_observer(cond, running);
+    green_t *prev = running;
+    green_t *next = next_thread();
+
+    running = next;
+
+    swapcontext(prev->context, next->context);
+}
+
+struct green_t *green_cond_dequeue(green_cond_t *cond)
+{
+    struct green_list_node *head = cond->list;
+    if (head != NULL)
+    {
+        cond->list = cond->list->next;
+        return head->item;
+    }
+
+    return NULL;
 }
 
 void green_cond_signal(green_cond_t *cond)
 {
-    struct green_list_node *head = cond->list;
+
+    struct green_t *head = green_cond_dequeue(cond);
 
     if (head != NULL)
     {
-        printf("I AM HERE");
-        swapcontext(running->context, head->item->context);
-    }
-    else
-    {
-        green_yield();
+        enqueue(head);
     }
 }

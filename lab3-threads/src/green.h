@@ -44,7 +44,7 @@ int green_create(green_t *thread, void *(*fun)(void *), void *arg);
 int green_join();
 
 void green_cond_init(green_cond_t *cond);
-void green_cond_wait(green_cond_t *cond);
+void green_cond_wait(green_cond_t *cond, green_mutex_t *mutex);
 void green_cond_signal(green_cond_t *cond);
 
 //
@@ -60,3 +60,4 @@ int HAS_INITIALIZED;
 static ucontext_t main_cntx;
 int len(struct green_list_node *list);
 struct green_t *green_cond_dequeue(struct green_list_node **original);
+void add_to_list(struct green_list_node **original, green_t *context);

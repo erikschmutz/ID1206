@@ -273,16 +273,53 @@ void green_cond_init(green_cond_t *cond)
     cond->id = cond_id++;
 }
 
-void green_cond_wait(green_cond_t *cond)
+void green_cond_wait(green_cond_t *cond, green_mutex_t *mutex)
 {
+
+    sigprocmask(SIG_BLOCK, &block, NULL);
 
     add_to_list(&cond->list, running);
     green_t *prev = running;
     green_t *next = next_thread();
 
+    if (mutex != NULL)
+    {
+
+        struct green_t *head = green_cond_dequeue(&mutex->list);
+
+        if (head != NULL)
+        {
+            enqueue(head);
+        }
+        else
+        {
+            mutex->taken = FALSE;
+        }
+    }
+
     running = next;
 
     swapcontext(prev->context, next->context);
+
+    if (mutex != NULL)
+    {
+
+        if (mutex->taken)
+        {
+            add_to_list(&mutex->list, running);
+            green_t *prev = running;
+            green_t *next = next_thread();
+
+            running = next;
+
+            swapcontext(prev->context, next->context);
+        }
+        else
+        {
+            mutex->taken = TRUE;
+        }
+    }
+    sigprocmask(SIG_UNBLOCK, &block, NULL);
 }
 
 struct green_t *green_cond_dequeue(struct green_list_node **original)
@@ -328,9 +365,13 @@ int green_mutex_lock(green_mutex_t *mutex)
 
     if (mutex->taken)
     {
-        add_to_list(&mutex->list, susp);
-        running = next_thread();
-        swapcontext(susp->context, running->context);
+        add_to_list(&mutex->list, running);
+        green_t *prev = running;
+        green_t *next = next_thread();
+
+        running = next;
+
+        swapcontext(prev->context, next->context);
     }
     else
     {
@@ -347,14 +388,11 @@ int green_mutex_unlock(green_mutex_t *mutex)
 
     sigprocmask(SIG_BLOCK, &block, NULL);
 
-    if (mutex->list != NULL)
-    {
-        struct green_t *head = green_cond_dequeue(&mutex->list);
+    struct green_t *head = green_cond_dequeue(&mutex->list);
 
-        if (head != NULL)
-        {
-            enqueue(head);
-        }
+    if (head != NULL)
+    {
+        enqueue(head);
     }
     else
     {

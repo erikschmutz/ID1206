@@ -12,9 +12,58 @@ struct green_cond_t pub_cond;
 struct green_cond_t ack_cond;
 
 struct green_mutex_t mutex;
+struct green_mutex_t mutex2;
 
 int message = 1;
 int x = 0;
+
+int test_condo_mutex(void *arg)
+{
+    int id = *(int *)arg;
+    int loop = 10;
+
+    while (loop > 0)
+    {
+        green_mutex_lock(&mutex);
+        while (flag != id)
+        {
+            green_cond_wait(&cond, &mutex);
+        }
+        flag = (id + 1) % 2;
+        green_cond_signal(&cond);
+        green_mutex_unlock(&mutex);
+        loop--;
+    }
+}
+
+int prime(int n)
+{
+    int found = 0;
+    int current = -1;
+    int x = 2, y = 0;
+    while (found < n)
+    {
+        // Find another prime
+
+        for (y = 2; y < x; y++)
+        {
+            if ((x % y) == 0)
+            {
+                break;
+            }
+
+            if (y == x - 1)
+            {
+                found++;
+                current = x;
+            }
+        }
+
+        x++;
+    }
+
+    return current;
+}
 
 int sleep_runnable(void *arg)
 {
@@ -52,13 +101,16 @@ int test_mutex_runnable(void *arg)
 {
 
     int id = *(int *)arg;
-
     int i = 0;
 
-    for (i = 0; i < 100000000; i++)
+    for (i = 0; i < 400; i++)
     {
         green_mutex_lock(&mutex);
-        x++;
+
+        int y = x;
+        prime(i);
+        x = y + 1;
+
         green_mutex_unlock(&mutex);
     }
 }
@@ -82,7 +134,7 @@ void test_condition(void *arg)
         }
         else
         {
-            green_cond_wait(&cond);
+            green_cond_wait(&cond, NULL);
         }
     }
 
@@ -118,7 +170,7 @@ void test_condition_producer()
         printf("P: Sent msg (%i)\n", message);
         green_cond_signal(&pub_cond);
         printf("P: Waiting for ack...\n");
-        green_cond_wait(&ack_cond);
+        green_cond_wait(&ack_cond, NULL);
         printf("P: Recieved ack\n\n");
     }
 }
@@ -129,7 +181,7 @@ void test_condition_consumer()
 
     while (TRUE)
     {
-        green_cond_wait(&pub_cond);
+        green_cond_wait(&pub_cond, NULL);
         printf("S: Recieved msg(%i)\n", message);
         green_cond_signal(&ack_cond);
         printf("S: Sent ack...\n");
@@ -206,7 +258,7 @@ void should_be_able_to_create_condition()
     green_cond_init(condition);
     assert(len(condition->list) == 0);
 
-    green_cond_wait(condition);
+    green_cond_wait(condition, NULL);
     assert(1 == len(condition->list));
 
     green_cond_dequeue(&condition->list);
@@ -263,6 +315,8 @@ void should_be_able_to_use_mutex()
 
     green_mutex_init(&mutex);
 
+    assert(len(mutex.list) == 0);
+
     green_create(&g0, (void *(*)(void *))test_mutex_runnable, &a0);
     green_create(&g1, (void *(*)(void *))test_mutex_runnable, &a1);
     green_create(&g2, (void *(*)(void *))test_mutex_runnable, &a2);
@@ -273,7 +327,62 @@ void should_be_able_to_use_mutex()
     green_join(&g2, NULL);
     green_join(&g3, NULL);
 
-    printf("%i", (x));
+    assert(x == 4 * 400);
+}
+
+void should_be_able_to_enqueue_and_dequeue()
+{
+
+    int a0 = 0, a1 = 1, a2 = 2, a3 = 3;
+    green_t g0, g1, g2, g3;
+
+    green_mutex_init(&mutex2);
+
+    green_create(&g0, (void *(*)(void *))test_runnable, &a0);
+    green_create(&g1, (void *(*)(void *))test_runnable, &a1);
+    green_create(&g2, (void *(*)(void *))test_runnable, &a2);
+    green_create(&g3, (void *(*)(void *))test_runnable, &a3);
+
+    add_to_list(&mutex2.list, &g0);
+    assert(len(mutex2.list) == 1);
+
+    add_to_list(&mutex2.list, &g1);
+    assert(len(mutex2.list) == 2);
+
+    add_to_list(&mutex2.list, &g2);
+    assert(len(mutex2.list) == 3);
+
+    green_t *dequeue;
+
+    dequeue = green_cond_dequeue(&mutex2.list);
+    assert(dequeue->id == g0.id);
+
+    dequeue = green_cond_dequeue(&mutex2.list);
+    assert(dequeue->id == g1.id);
+
+    assert(len(mutex2.list) == 1);
+
+    dequeue = green_cond_dequeue(&mutex2.list);
+    assert(dequeue->id == g2.id);
+
+    assert(len(mutex2.list) == 0);
+}
+
+void should_be_able_to_use_condo_with_mutex()
+{
+
+    int a0 = 0, a1 = 1, a2 = 2, a3 = 3;
+    green_t g0, g1;
+
+    green_mutex_init(&mutex);
+
+    assert(len(mutex.list) == 0);
+
+    green_create(&g0, (void *(*)(void *))test_condo_mutex, &a0);
+    green_create(&g1, (void *(*)(void *))test_condo_mutex, &a1);
+
+    green_join(&g0, NULL);
+    green_join(&g1, NULL);
 }
 
 int main()
@@ -286,6 +395,8 @@ int main()
     should_be_able_to_execute_with_condition();
     // should_be_able_to_execute_a_pub_sub();
     // should_not_be_able_to_freeze();
+    // should_be_able_to_enqueue_and_dequeue();
 
-    should_be_able_to_use_mutex();
+    // should_be_able_to_use_mutex();
+    should_be_able_to_use_condo_with_mutex();
 }

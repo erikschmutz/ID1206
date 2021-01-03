@@ -30,6 +30,12 @@ typedef struct green_cond_t
     int id;
 } green_cond_t;
 
+typedef struct green_mutex_t
+{
+    volatile int taken;
+    struct green_list_node *list;
+} green_mutex_t;
+
 // {f(args..), condition = Date.now() > 1000000} => {f2(args2...), conditon = }
 
 int green_yield();
@@ -41,10 +47,16 @@ void green_cond_init(green_cond_t *cond);
 void green_cond_wait(green_cond_t *cond);
 void green_cond_signal(green_cond_t *cond);
 
+//
+int green_mutex_init(green_mutex_t *mutex);
+int green_mutex_lock(green_mutex_t *mutex);
+int green_mutex_unlock(green_mutex_t *mutex);
+
 // For testing
 struct green_t *dequeue();
+void print(char *str, int length);
 void enqueue(green_t *thread);
 int HAS_INITIALIZED;
 static ucontext_t main_cntx;
 int len(struct green_list_node *list);
-struct green_t *green_cond_dequeue(green_cond_t *cond);
+struct green_t *green_cond_dequeue(struct green_list_node **original);

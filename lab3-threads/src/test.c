@@ -5,22 +5,62 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#define LOUD FALSE
 int flag = 0;
 struct green_cond_t cond;
 struct green_cond_t pub_cond;
-int message = 0;
+struct green_cond_t ack_cond;
+
+struct green_mutex_t mutex;
+
+int message = 1;
+int x = 0;
+
+int sleep_runnable(void *arg)
+{
+
+    int id = *(int *)arg;
+
+    long y = 0;
+    while (TRUE)
+        y = y % 2;
+
+    return 100 + id;
+}
 
 int test_runnable(void *arg)
 {
+
     int i = *(int *)arg;
     int loop = 4;
+
     while (loop > 0)
     {
         loop--;
         green_yield();
     }
 
+    if (LOUD)
+    {
+        print("done", sizeof("done"));
+    }
+
     return 100 + i;
+}
+
+int test_mutex_runnable(void *arg)
+{
+
+    int id = *(int *)arg;
+
+    int i = 0;
+
+    for (i = 0; i < 100000000; i++)
+    {
+        green_mutex_lock(&mutex);
+        x++;
+        green_mutex_unlock(&mutex);
+    }
 }
 
 void test_condition(void *arg)
@@ -37,7 +77,7 @@ void test_condition(void *arg)
             loop--;
             flag = (id + 1) % 2;
 
-            printf("thread %i : %i\n", id, loop);
+            // printf("thread %i : %i\n", id, loop);
             green_cond_signal(&cond);
         }
         else
@@ -49,32 +89,50 @@ void test_condition(void *arg)
     return;
 }
 
+int get_fibb(int prev)
+{
+
+    int x = 0, y = 1;
+
+    while (TRUE)
+    {
+        if (x > prev)
+        {
+            return x;
+        }
+
+        int t = x;
+        x = x + y;
+        y = t;
+    }
+}
+
 void test_condition_producer()
 {
 
     while (TRUE)
     {
         sleep(1);
-        message = (message + 1) * message;
+        message = get_fibb(message);
+
+        printf("P: Sent msg (%i)\n", message);
         green_cond_signal(&pub_cond);
-        printf("New message from pub...\n");
+        printf("P: Waiting for ack...\n");
+        green_cond_wait(&ack_cond);
+        printf("P: Recieved ack\n\n");
     }
 }
 
 void test_condition_consumer()
 {
     int prev_message;
-    printf("New subber...");
 
     while (TRUE)
     {
-
-        // if (prev_message != message)
-        // {
-        //     printf("New message %i", message);
-        // }
-        printf("test");
         green_cond_wait(&pub_cond);
+        printf("S: Recieved msg(%i)\n", message);
+        green_cond_signal(&ack_cond);
+        printf("S: Sent ack...\n");
     }
 }
 
@@ -151,7 +209,7 @@ void should_be_able_to_create_condition()
     green_cond_wait(condition);
     assert(1 == len(condition->list));
 
-    green_cond_dequeue(condition);
+    green_cond_dequeue(&condition->list);
     assert(0 == len(condition->list));
 }
 
@@ -166,6 +224,7 @@ void should_be_able_to_execute_with_condition()
     green_cond_init(&cond);
 
     green_join(&g1, NULL);
+    green_join(&g0, NULL);
 }
 
 void should_be_able_to_execute_a_pub_sub()
@@ -177,8 +236,44 @@ void should_be_able_to_execute_a_pub_sub()
     green_create(&g1, (void *(*)(void *))test_condition_producer, &a1);
 
     green_cond_init(&pub_cond);
+    green_cond_init(&ack_cond);
 
     green_join(&g0, NULL);
+    green_join(&g1, NULL);
+}
+
+void should_not_be_able_to_freeze()
+{
+
+    green_t g0, g1, g2;
+    int a0 = 0, a1 = 1, a2 = 2;
+
+    green_create(&g0, (void *(*)(void *))sleep_runnable, &a0);
+    green_create(&g1, (void *(*)(void *))test_runnable, &a1);
+
+    green_join(&g0, NULL);
+    green_join(&g1, NULL);
+}
+
+void should_be_able_to_use_mutex()
+{
+
+    int a0 = 0, a1 = 1, a2 = 2, a3 = 3;
+    green_t g0, g1, g2, g3;
+
+    green_mutex_init(&mutex);
+
+    green_create(&g0, (void *(*)(void *))test_mutex_runnable, &a0);
+    green_create(&g1, (void *(*)(void *))test_mutex_runnable, &a1);
+    green_create(&g2, (void *(*)(void *))test_mutex_runnable, &a2);
+    green_create(&g3, (void *(*)(void *))test_mutex_runnable, &a3);
+
+    green_join(&g0, NULL);
+    green_join(&g1, NULL);
+    green_join(&g2, NULL);
+    green_join(&g3, NULL);
+
+    printf("%i", (x));
 }
 
 int main()
@@ -189,5 +284,8 @@ int main()
     should_execute();
     should_be_able_to_create_condition();
     should_be_able_to_execute_with_condition();
-    should_be_able_to_execute_a_pub_sub();
+    // should_be_able_to_execute_a_pub_sub();
+    // should_not_be_able_to_freeze();
+
+    should_be_able_to_use_mutex();
 }

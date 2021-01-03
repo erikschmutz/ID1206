@@ -2,9 +2,18 @@
 #include "green.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <signal.h>
+#include <sys/time.h>
+#include <assert.h>
+#include <unistd.h>
+#define PERIOD 100
 
 int id = 0;
 int cond_id = 0;
+
+static sigset_t block;
+
+void timer_handler(int);
 
 static ucontext_t main_cntx;
 static green_t main_green = {
@@ -23,6 +32,30 @@ int HAS_INITIALIZED = FALSE;
 static green_t *running = &main_green;
 static void init() __attribute__((constructor));
 
+void init()
+{
+
+    sigemptyset(&block);
+    sigaddset(&block, SIGVTALRM);
+
+    struct sigaction act = {0};
+    struct timeval interval;
+    struct itimerval period;
+
+    act.sa_handler = timer_handler;
+
+    assert(sigaction(SIGVTALRM, &act, NULL) == 0);
+
+    interval.tv_sec = 0;
+    interval.tv_usec = PERIOD;
+    period.it_interval = interval;
+    period.it_value = interval;
+    setitimer(ITIMER_VIRTUAL, &period, NULL);
+
+    getcontext(&main_cntx);
+    HAS_INITIALIZED = TRUE;
+}
+
 void view_run_list()
 {
     struct green_t *current = &main_green;
@@ -34,13 +67,6 @@ void view_run_list()
     }
 
     printf("\n");
-}
-
-void init()
-{
-
-    getcontext(&main_cntx);
-    HAS_INITIALIZED = TRUE;
 }
 
 void enqueue(green_t *thread)
@@ -115,6 +141,8 @@ int green_thread()
 
 int green_yield()
 {
+    sigprocmask(SIG_BLOCK, &block, NULL);
+
     green_t *susp = running;
     enqueue(susp);
 
@@ -123,7 +151,21 @@ int green_yield()
 
     swapcontext(susp->context, next->context);
 
+    sigprocmask(SIG_UNBLOCK, &block, NULL);
     return 0;
+}
+
+void timer_handler(int sig)
+{
+
+    // print("Interupt!", sizeof("Interupt!"));
+    green_t *susp = running;
+    enqueue(susp);
+
+    green_t *next = next_thread();
+    running = next;
+
+    swapcontext(susp->context, next->context);
 }
 
 int green_create(green_t *new, void *(*fun)(void *), void *arg)
@@ -181,19 +223,22 @@ int green_join(green_t *thread, void **res)
     return 0;
 }
 
-//
-//
+void print(char *str, int length)
+{
+    write(1, str, length);
+}
+
 //
 
-void add_observer(green_cond_t *cond, green_t *context)
+void add_to_list(struct green_list_node **original, green_t *context)
 {
-    struct green_list_node *current = cond->list;
+    struct green_list_node *current = *original;
 
     if (current == NULL)
     {
-        cond->list = (struct green_list_node *)malloc(sizeof(struct green_list_node));
-        cond->list->item = context;
-        cond->list->next = NULL;
+        (*original) = (struct green_list_node *)malloc(sizeof(struct green_list_node));
+        (*original)->item = context;
+        (*original)->next = NULL;
 
         return;
     }
@@ -205,7 +250,6 @@ void add_observer(green_cond_t *cond, green_t *context)
 
     current->next = malloc(sizeof(struct green_list_node));
     current->next->item = context;
-    cond->list->next = NULL;
 }
 
 int len(struct green_list_node *list)
@@ -232,7 +276,7 @@ void green_cond_init(green_cond_t *cond)
 void green_cond_wait(green_cond_t *cond)
 {
 
-    add_observer(cond, running);
+    add_to_list(&cond->list, running);
     green_t *prev = running;
     green_t *next = next_thread();
 
@@ -241,12 +285,13 @@ void green_cond_wait(green_cond_t *cond)
     swapcontext(prev->context, next->context);
 }
 
-struct green_t *green_cond_dequeue(green_cond_t *cond)
+struct green_t *green_cond_dequeue(struct green_list_node **original)
 {
-    struct green_list_node *head = cond->list;
+    struct green_list_node *head = *(original);
+
     if (head != NULL)
     {
-        cond->list = cond->list->next;
+        (*original) = (*original)->next;
         return head->item;
     }
 
@@ -256,10 +301,66 @@ struct green_t *green_cond_dequeue(green_cond_t *cond)
 void green_cond_signal(green_cond_t *cond)
 {
 
-    struct green_t *head = green_cond_dequeue(cond);
+    struct green_t *head = green_cond_dequeue(&cond->list);
 
     if (head != NULL)
     {
         enqueue(head);
     }
+}
+
+//
+
+int green_mutex_init(green_mutex_t *mutex)
+{
+    mutex->taken = FALSE;
+    mutex->list = NULL;
+
+    return 0;
+}
+
+int green_mutex_lock(green_mutex_t *mutex)
+{
+
+    sigprocmask(SIG_BLOCK, &block, NULL);
+
+    green_t *susp = running;
+
+    if (mutex->taken)
+    {
+        add_to_list(&mutex->list, susp);
+        running = next_thread();
+        swapcontext(susp->context, running->context);
+    }
+    else
+    {
+        mutex->taken = TRUE;
+    }
+
+    sigprocmask(SIG_UNBLOCK, &block, NULL);
+
+    return 0;
+}
+
+int green_mutex_unlock(green_mutex_t *mutex)
+{
+
+    sigprocmask(SIG_BLOCK, &block, NULL);
+
+    if (mutex->list != NULL)
+    {
+        struct green_t *head = green_cond_dequeue(&mutex->list);
+
+        if (head != NULL)
+        {
+            enqueue(head);
+        }
+    }
+    else
+    {
+        mutex->taken = FALSE;
+    }
+
+    sigprocmask(SIG_UNBLOCK, &block, NULL);
+    return 0;
 }

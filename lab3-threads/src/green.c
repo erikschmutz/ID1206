@@ -107,6 +107,8 @@ struct green_t *next_thread()
         return NULL;
     if (n->zombie)
         return next_thread();
+    if (n->join != NULL && n->join->zombie == FALSE)
+        return n->join;
 
     return n;
 }

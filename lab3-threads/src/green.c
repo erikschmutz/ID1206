@@ -32,9 +32,8 @@ int HAS_INITIALIZED = FALSE;
 static green_t *running = &main_green;
 static void init() __attribute__((constructor));
 
-void init()
+void reset()
 {
-
     sigemptyset(&block);
     sigaddset(&block, SIGVTALRM);
 
@@ -54,15 +53,24 @@ void init()
 
     getcontext(&main_cntx);
     HAS_INITIALIZED = TRUE;
+    running = &main_green;
+}
+void init()
+{
+    reset();
 }
 
 void view_run_list()
 {
-    struct green_t *current = &main_green;
+    struct green_t *current = running;
 
     while (current != NULL)
     {
-        printf("{ id:%i, zombie: %i}", current->id, current->zombie);
+        if (current->join != NULL)
+            printf("{ id:%i, joining: %i }", current->id, current->join->id);
+        else
+            printf("{ id:%i }", current->id);
+
         current = current->next;
     }
 
@@ -71,10 +79,11 @@ void view_run_list()
 
 void enqueue(green_t *thread)
 {
-    green_t *current = &main_green;
+    green_t *current = running;
 
     while (current->next != NULL)
     {
+
         current = current->next;
     }
 
@@ -84,18 +93,15 @@ void enqueue(green_t *thread)
 struct green_t *dequeue()
 {
 
-    // main_green => a_green => b_green => c_green
-    // Will return next_green and point main_green to
-    // third green
-    if (main_green.next == NULL)
-        return &main_green;
+    green_t *current = running;
 
-    struct green_t *next = main_green.next;
+    if (current == NULL)
+        return NULL;
 
-    main_green.next = main_green.next->next;
-    next->next = NULL;
+    running = running->next;
+    current->next = NULL;
 
-    return next;
+    return running;
 }
 
 struct green_t *next_thread()
@@ -105,10 +111,15 @@ struct green_t *next_thread()
 
     if (n == NULL)
         return NULL;
+
+    if (n->join && !n->join->zombie)
+    {
+        enqueue(n);
+        return next_thread();
+    }
+
     if (n->zombie)
         return next_thread();
-    if (n->join != NULL && n->join->zombie == FALSE)
-        return n->join;
 
     return n;
 }
@@ -129,11 +140,13 @@ int green_thread()
     this->zombie = TRUE;
 
     green_t *next = next_thread();
+
     running = next;
 
     if (next == NULL)
     {
         printf("But wait there no next...");
+        return 1;
     }
 
     setcontext(next->context);
@@ -143,6 +156,7 @@ int green_thread()
 
 int green_yield()
 {
+
     sigprocmask(SIG_BLOCK, &block, NULL);
 
     green_t *susp = running;
@@ -199,6 +213,13 @@ struct green_t *run_next()
 {
     green_t *current = running;
     green_t *next = next_thread();
+
+    if (next->join != NULL && !next->join->zombie)
+    {
+
+        enqueue(next);
+    }
+
     running = next;
     swapcontext(current->context, next->context);
     return next;
@@ -207,12 +228,11 @@ struct green_t *run_next()
 int green_join(green_t *thread, void **res)
 {
 
-    struct green_t *next;
-
     if (!thread->zombie)
     {
         running->join = thread;
-        next = run_next();
+        enqueue(running);
+        run_next();
     }
 
     if (res != NULL)
@@ -301,7 +321,8 @@ void green_cond_wait(green_cond_t *cond, green_mutex_t *mutex)
 
     running = next;
 
-    swapcontext(prev->context, next->context);
+    if (next != NULL)
+        swapcontext(prev->context, next->context);
 
     if (mutex != NULL)
     {

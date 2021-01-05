@@ -87,6 +87,7 @@ int test_runnable(void *arg)
     {
         loop--;
         green_yield();
+        // printf("%i %i\n", i, loop);
     }
 
     if (LOUD)
@@ -245,9 +246,7 @@ void should_enque_and_dequeue()
     assert(dequeue()->id == 1);
     assert(dequeue()->id == 2);
 
-    // Should not remove sentinel
-    assert(dequeue()->id == -1);
-    assert(dequeue()->id == -1);
+    // assert(dequeue() == NULL);
 }
 
 void should_be_able_to_create_condition()
@@ -337,7 +336,6 @@ void should_be_able_to_enqueue_and_dequeue()
     green_t g0, g1, g2, g3;
 
     green_mutex_init(&mutex2);
-
     green_create(&g0, (void *(*)(void *))test_runnable, &a0);
     green_create(&g1, (void *(*)(void *))test_runnable, &a1);
     green_create(&g2, (void *(*)(void *))test_runnable, &a2);
@@ -366,6 +364,11 @@ void should_be_able_to_enqueue_and_dequeue()
     assert(dequeue->id == g2.id);
 
     assert(len(mutex2.list) == 0);
+
+    green_join(&g0, NULL);
+    green_join(&g1, NULL);
+    green_join(&g2, NULL);
+    green_join(&g3, NULL);
 }
 
 void should_be_able_to_use_condo_with_mutex()
@@ -391,12 +394,20 @@ int main()
     should_initlize();
     should_enque_and_dequeue();
     should_execute();
+    reset();
     should_be_able_to_create_condition();
+    reset();
     should_be_able_to_execute_with_condition();
+    reset();
     // should_be_able_to_execute_a_pub_sub();
     // should_not_be_able_to_freeze();
-    // should_be_able_to_enqueue_and_dequeue();
+    should_be_able_to_enqueue_and_dequeue();
+    // view_run_list();
+    reset();
 
-    // should_be_able_to_use_mutex();
+    should_be_able_to_use_mutex();
+    reset();
+
     should_be_able_to_use_condo_with_mutex();
+    reset();
 }
